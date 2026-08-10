@@ -21,7 +21,6 @@ import httpx
 from agent.loop import run_turn
 from config import settings
 from context import set_conversation
-from gate import is_authorized
 from memory import store
 from memory.reflect import maybe_reflect
 from memory.summarize import compact
@@ -110,9 +109,7 @@ async def handle_update(update: dict) -> None:
     try:
         raw = store.load_history(conversation_id)
         view = await compact(conversation_id, raw)  # summary note + recent tail
-        result = await run_turn(
-            text, view, authorized_destructive=is_authorized(text)
-        )
+        result = await run_turn(text, view, conversation_id=conversation_id)
         # Persist only this turn's new messages (the summary note is synthetic).
         store.append_messages(conversation_id, result.history[len(view):])
     except Exception as exc:

@@ -12,10 +12,10 @@ from __future__ import annotations
 
 import asyncio
 
+import gate
 from agent.loop import run_turn
 from config import settings
 from context import set_conversation
-from gate import is_authorized
 from memory import store
 from memory.reflect import maybe_reflect
 from memory.summarize import compact
@@ -49,17 +49,14 @@ async def main() -> None:
         if user_text.lower() == "/reset":
             store.clear(_CONVERSATION_ID)
             store.clear_summary(_CONVERSATION_ID)
+            gate.clear(_CONVERSATION_ID)
             print("history cleared\n")
             continue
 
         set_conversation(_CONVERSATION_ID)
         raw = store.load_history(_CONVERSATION_ID)
         view = await compact(_CONVERSATION_ID, raw)  # summary note + recent tail
-        result = await run_turn(
-            user_text,
-            view,
-            authorized_destructive=is_authorized(user_text),
-        )
+        result = await run_turn(user_text, view, conversation_id=_CONVERSATION_ID)
         # Persist just this turn's new messages (the summary note is synthetic).
         store.append_messages(_CONVERSATION_ID, result.history[len(view):])
 

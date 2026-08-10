@@ -7,11 +7,13 @@ Run:  uv --directory server run python scripts/verify_phase2.py
 
 import asyncio
 import os
+import sqlite3
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import agent.loop as loop  # noqa: E402
+import gate  # noqa: E402
 from agent.tools import _composio, calendar as cal  # noqa: E402
 from agent.tools.registry import TOOLS, TOOL_SCHEMAS, DESTRUCTIVE_TOOLS, execute_tool  # noqa: E402
 
@@ -98,6 +100,7 @@ def scripted_chat(responses):
 async def main():
     fake = FakeComposio(RESPONSES)
     _composio.set_client(fake)
+    gate.set_connection(sqlite3.connect(":memory:", check_same_thread=False))
     cal._cached_tz = None  # reset tz cache
 
     print("1) registry integration")
@@ -159,18 +162,15 @@ async def main():
                                     '{"to":"boss@x.com","subject":"Hi","body":"hello"}')]),
         _msg(content="Want me to send that to boss@x.com? Confirm and I will."),
     ])
-    await loop.run_turn("email boss hello", [])
+    await loop.run_turn("email boss hello", [], conversation_id="c1")
     sent_calls = [s for s, _ in fake.calls if s == "GMAIL_SEND_EMAIL"]
-    check("gmail_send NOT executed when unauthorized", sent_calls == [])
+    check("gmail_send NOT executed when proposed", sent_calls == [])
 
-    loop.chat = scripted_chat([
-        _msg(tool_calls=[_tool_call("s2", "gmail_send",
-                                    '{"to":"boss@x.com","subject":"Hi","body":"hello"}')]),
-        _msg(content="Sent."),
-    ])
-    await loop.run_turn("yes send it", [], authorized_destructive=True)
+    # Approve: the STORED send args run before the model, which just narrates.
+    loop.chat = scripted_chat([_msg(content="Sent.")])
+    await loop.run_turn("yes send it", [], conversation_id="c1")
     sent_calls = [s for s, _ in fake.calls if s == "GMAIL_SEND_EMAIL"]
-    check("gmail_send executed when authorized", sent_calls == ["GMAIL_SEND_EMAIL"])
+    check("gmail_send executed on approval", sent_calls == ["GMAIL_SEND_EMAIL"])
 
     _composio.set_client(None)
     print(f"\n{ok} passed, {fail} failed")

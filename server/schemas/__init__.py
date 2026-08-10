@@ -19,6 +19,7 @@ from .email import (
     OutgoingEmail,
 )
 from .events import ProactiveEvent
+from .gate import PendingAction, PendingStatus
 from .tools import ToolCall, ToolResult, ToolSpec, ToolStatus
 from .triggers import Trigger, TriggerStatus
 from .web import WebSearchResponse, WebSearchResult
@@ -52,4 +53,7 @@ __all__ = [
     "Trigger",
     "TriggerStatus",
     "ProactiveEvent",
+    # gate
+    "PendingAction",
+    "PendingStatus",
 ]

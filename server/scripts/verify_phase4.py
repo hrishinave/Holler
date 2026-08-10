@@ -62,8 +62,8 @@ async def main():
 
     captured: list[dict] = []
 
-    async def fake_run_turn(text, history, *, authorized_destructive=False):
-        captured.append({"text": text, "hist_len": len(history), "auth": authorized_destructive})
+    async def fake_run_turn(text, history, *, conversation_id="", interactive=True):
+        captured.append({"text": text, "hist_len": len(history), "conv": conversation_id})
         new = list(history) + [
             {"role": "user", "content": text},
             {"role": "assistant", "content": f"echo: {text}"},
@@ -78,12 +78,11 @@ async def main():
     await tg.handle_update(_update(123, "what's up"))
     check("reply sent back to chat", sent and sent[-1][0] == "123" and "echo: what's up" in sent[-1][1])
     check("turn ran once", len(captured) == 1)
-    check("not authorized on a plain message", captured[-1]["auth"] is False)
     check("memory persisted per chat", store.count("tg:123") == 2)
 
-    print("5) gate authorization flows from message text")
+    print("5) conversation id is threaded to the loop (gate keys off it)")
     await tg.handle_update(_update(123, "yes send it"))
-    check("approval word -> authorized_destructive", captured[-1]["auth"] is True)
+    check("run_turn gets the per-chat conversation id", captured[-1]["conv"] == "tg:123")
 
     print("6) per-chat memory isolation + resume")
     await tg.handle_update(_update(123, "again"))

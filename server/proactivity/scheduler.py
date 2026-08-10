@@ -87,9 +87,11 @@ class Scheduler:
         try:
             set_conversation(trig.conversation_id)
             history = mstore.load_history(trig.conversation_id)
-            # authorized_destructive is False: proactive turns can read/plan but
-            # never send mail or delete events unprompted.
-            result = await self._runner(trig.prompt, history, authorized_destructive=False)
+            # interactive=False: proactive turns can read/plan but never send mail
+            # or delete events unprompted (no user present to approve).
+            result = await self._runner(
+                trig.prompt, history, conversation_id=trig.conversation_id, interactive=False
+            )
             mstore.append_messages(trig.conversation_id, result.history[len(history):])
 
             if result.reply and result.reply.strip():

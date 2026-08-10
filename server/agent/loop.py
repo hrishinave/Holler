@@ -6,15 +6,17 @@ calls) or we hit the iteration budget. Reacting to each tool result is what make
 "find the event, then delete it" work without any up-front DAG.
 
 The destructive-action gate lives here (code, not prompt): a tool flagged
-``destructive`` is refused with a ``needs_confirmation`` result unless the user
-authorized it in their own message this turn.
+``destructive`` is not run — the loop ``propose``s it (freezing the exact args)
+and asks the user. On a later turn, if the user approves, the loop executes the
+*stored* args verbatim. See ``gate`` for the pending-action model.
 """
 
 from __future__ import annotations
 
 import json
+import secrets
 
-from gate import is_authorized
+import gate
 from llm import chat
 from memory.facts import facts_block
 from schemas import StopReason, ToolCall, ToolResult, TurnResult
@@ -44,15 +46,44 @@ def _assistant_msg(msg: dict) -> dict:
     return out
 
 
+def _synthetic_tool_exchange(tool: str, arguments: dict, result: dict) -> list[dict]:
+    """A valid assistant(tool_call)+tool pair for an action we ran on the user's
+    behalf (an approved pending action), so the model sees the outcome and the
+    transcript stays well-formed for compaction/reflection."""
+    call_id = "confirmed_" + secrets.token_hex(4)
+    return [
+        {"role": "assistant", "content": None,
+         "tool_calls": [{"id": call_id, "type": "function",
+                         "function": {"name": tool,
+                                      "arguments": json.dumps(arguments, default=str)}}]},
+        {"role": "tool", "tool_call_id": call_id, "content": json.dumps(result, default=str)},
+    ]
+
+
 async def run_turn(
     user_text: str,
     history: list | None = None,
     *,
-    authorized_destructive: bool = False,
+    conversation_id: str = "",
+    interactive: bool = True,
 ) -> TurnResult:
-    """Run one user turn to completion. Returns the reply + updated transcript."""
+    """Run one user turn to completion. Returns the reply + updated transcript.
+
+    ``interactive`` is False for unattended (proactive) runs: there is no user to
+    approve anything, so destructive tools can never fire.
+    """
     messages: list = list(history or []) + [{"role": "user", "content": user_text}]
     tools_used: list[str] = []
+
+    # Approval short-circuit: if the user's message approves the pending action,
+    # execute the STORED args verbatim (variant B) before the model runs, and let
+    # it narrate the result. Nothing the model does this turn can alter what ran.
+    if interactive and gate.reads_as_approval(user_text):
+        approved = gate.take_approved(conversation_id)
+        if approved is not None:
+            result = await execute_tool(approved.tool, approved.arguments)
+            tools_used.append(approved.tool)
+            messages += _synthetic_tool_exchange(approved.tool, approved.arguments, result)
 
     for i in range(1, MAX_ITERS + 1):
         resp = await chat(messages, tools=TOOL_SCHEMAS, system=system_prompt())
@@ -75,12 +106,23 @@ async def run_turn(
             tools_used.append(call.name)
             spec = TOOLS.get(call.name)
 
-            if spec is not None and spec.is_destructive(call.arguments) and not authorized_destructive:
-                # Hard gate: refuse; make the model come back and ask the user.
-                result = ToolResult.needs_confirmation(
-                    f"{call.name} is destructive and the user has not confirmed. "
-                    "Ask them to confirm before running it."
-                ).model_dump()
+            if spec is not None and spec.is_destructive(call.arguments):
+                # Hard gate: don't run it. Freeze the exact args and ask the user.
+                if not interactive:
+                    result = ToolResult.needs_confirmation(
+                        f"{call.name} is destructive and this run is unattended; it cannot "
+                        "be performed without the user present to approve it."
+                    ).model_dump()
+                else:
+                    try:
+                        frozen = spec.validate_args(call.arguments)
+                    except Exception:
+                        frozen = call.arguments
+                    pending = gate.propose(conversation_id, call.name, frozen)
+                    result = ToolResult.needs_confirmation(
+                        "Not done yet — this needs the user's go-ahead. Show them exactly "
+                        f"what will happen and ask them to confirm:\n{pending.preview}"
+                    ).model_dump()
             else:
                 result = await execute_tool(call.name, call.arguments)
 
@@ -101,4 +143,4 @@ async def run_turn(
     )
 
 
-__all__ = ["run_turn", "system_prompt", "is_authorized", "MAX_ITERS"]
+__all__ = ["run_turn", "system_prompt", "MAX_ITERS"]

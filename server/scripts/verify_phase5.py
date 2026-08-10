@@ -85,8 +85,8 @@ async def main():
     async def fake_send(chat_id, text):
         sent.append((chat_id, text))
 
-    async def fake_runner(prompt, history, *, authorized_destructive=False):
-        captured.append({"prompt": prompt, "auth": authorized_destructive})
+    async def fake_runner(prompt, history, *, conversation_id="", interactive=True):
+        captured.append({"prompt": prompt, "interactive": interactive})
         return TurnResult(reply=f"[proactive] {prompt}",
                           history=list(history) + [{"role": "assistant", "content": "x"}], iterations=1)
 
@@ -94,7 +94,7 @@ async def main():
     one = pstore.create("tg:555", "remind them to stretch", PAST)
     await sched.tick()
     check("runner ran the trigger prompt", captured and captured[-1]["prompt"] == "remind them to stretch")
-    check("proactive turn is gate-closed", captured[-1]["auth"] is False)
+    check("proactive turn is non-interactive (gate-closed)", captured[-1]["interactive"] is False)
     check("reply sent to derived chat id", sent and sent[-1][0] == "555" and "stretch" in sent[-1][1])
     check("one-shot marked done", pstore.get(one.id).status.value == "done")
     check("proactive reply persisted to memory", mstore.count("tg:555") >= 1)

@@ -6,11 +6,13 @@ Run from repo root:  uv --directory server run python scripts/verify_phase1.py
 
 import asyncio
 import os
+import sqlite3
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import agent.loop as loop  # noqa: E402
+import gate  # noqa: E402
 from agent.tools.registry import TOOLS, TOOL_SCHEMAS, execute_tool  # noqa: E402
 from gate import is_authorized  # noqa: E402
 from schemas import ToolResult, ToolSpec  # noqa: E402
@@ -53,6 +55,8 @@ def check(label, cond):
 
 
 async def main():
+    gate.set_connection(sqlite3.connect(":memory:", check_same_thread=False))
+
     print("1) registry + schema")
     check("clock tool registered", "get_current_time" in TOOLS)
     schema = TOOL_SCHEMAS[0]["function"]
@@ -101,24 +105,29 @@ async def main():
         args_model=FakeArgs, handler=_fake_delete, destructive=True,
     )
     try:
-        # Unauthorized: loop must refuse and NOT call the handler.
+        # Turn 1 — the model proposes a delete: loop refuses, freezes it, asks.
         loop.chat = scripted_chat([
             _msg(tool_calls=[_tool_call("d1", "fake_delete", '{"target": "x"}')]),
             _msg(content="Want me to delete x? Confirm and I will."),
         ])
-        turn = await loop.run_turn("delete x", [])
-        check("handler NOT called when unauthorized", called["n"] == 0)
+        turn = await loop.run_turn("delete x", [], conversation_id="c1")
+        check("handler NOT called when proposed", called["n"] == 0)
         tool_msgs = [m for m in turn.history if m.get("role") == "tool"]
         check("blocked result is needs_confirmation", "needs_confirmation" in tool_msgs[0]["content"])
+        check("a pending action was recorded", gate.latest_pending("c1") is not None)
 
-        # Authorized: loop runs the handler.
-        loop.chat = scripted_chat([
-            _msg(tool_calls=[_tool_call("d2", "fake_delete", '{"target": "x"}')]),
-            _msg(content="Done, deleted x."),
-        ])
-        turn = await loop.run_turn("yes, delete x", [], authorized_destructive=True)
-        check("handler called when authorized", called["n"] == 1)
+        # Turn 2 — the user approves: loop runs the STORED args before the model,
+        # which just narrates. No tool call needed from the model this turn.
+        loop.chat = scripted_chat([_msg(content="Done, deleted x.")])
+        turn = await loop.run_turn("yes, delete x", [], conversation_id="c1")
+        check("handler ran on approval", called["n"] == 1)
         check("final reply after delete", "deleted x" in turn.reply.lower())
+        check("pending consumed (no replay)", gate.latest_pending("c1") is None)
+
+        # A second "yes" with nothing pending does not re-run it.
+        loop.chat = scripted_chat([_msg(content="Nothing to confirm.")])
+        await loop.run_turn("yes", [], conversation_id="c1")
+        check("no double-fire on stray approval", called["n"] == 1)
     finally:
         TOOLS.pop("fake_delete", None)
 
@@ -154,20 +163,16 @@ async def main():
                                         '{"title": "sync", "attendees": ["a@b.com"]}')]),
             _msg(content="That invites a@b.com. Confirm and I'll send it."),
         ])
-        turn = await loop.run_turn("set up a sync with a@b.com", [])
+        turn = await loop.run_turn("set up a sync with a@b.com", [], conversation_id="c2")
         check("create w/ attendees NOT run when unauthorized", created["n"] == 1)
         tmsgs = [m for m in turn.history if m.get("role") == "tool"]
         check("attendee create blocked as needs_confirmation",
               "needs_confirmation" in tmsgs[0]["content"])
 
-        # Event with attendees, authorized -> runs.
-        loop.chat = scripted_chat([
-            _msg(tool_calls=[_tool_call("e3", "fake_create",
-                                        '{"title": "sync", "attendees": ["a@b.com"]}')]),
-            _msg(content="Sent the invite."),
-        ])
-        await loop.run_turn("yes set up the sync with a@b.com", [], authorized_destructive=True)
-        check("attendee create runs when authorized", created["n"] == 2)
+        # Approve -> the stored create (with attendees) runs.
+        loop.chat = scripted_chat([_msg(content="Sent the invite.")])
+        await loop.run_turn("yes send it", [], conversation_id="c2")
+        check("attendee create runs when approved", created["n"] == 2)
     finally:
         TOOLS.pop("fake_create", None)
 
