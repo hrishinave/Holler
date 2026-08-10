@@ -1,0 +1,23 @@
+[project]
+name = "personal-agent-final"
+version = "0.1.0"
+description = "A lean, open-source, BYOK Poke-like personal assistant (calendar + email)."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    # BYOK seam: one OpenRouter key, any model by slug, OpenAI-compatible API.
+    "openai>=1.50",
+    # Calendar + Gmail backend (modern SDK; matches the autoagent port surface).
+    "composio>=0.18",
+    # Web search tool (LLM-oriented results).
+    "tavily-python>=0.5",
+    # Config from env / .env (pydantic-settings uses python-dotenv under the hood).
+    "pydantic-settings>=2.4",
+    # Telegram channel + FastAPI server (Phase 4).
+    "fastapi>=0.115",
+    "uvicorn>=0.30",
+    "httpx>=0.27",
+]
+
+[tool.uv]
+package = false
