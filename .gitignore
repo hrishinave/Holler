@@ -17,6 +17,12 @@ venv/
 *.db
 *.sqlite3
 
+# Node / client (React/Next onboarding UI)
+node_modules/
+client/.next/
+client/dist/
+client/build/
+
 # Editor / OS
 .DS_Store
 .idea/
