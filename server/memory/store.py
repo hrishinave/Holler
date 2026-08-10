@@ -30,6 +30,11 @@ CREATE TABLE IF NOT EXISTS messages (
     created_at      TEXT DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_messages_conv ON messages (conversation_id, id);
+
+CREATE TABLE IF NOT EXISTS reflection_state (
+    conversation_id TEXT PRIMARY KEY,
+    last_message_id INTEGER NOT NULL DEFAULT 0
+);
 """
 
 _conn: sqlite3.Connection | None = None
@@ -96,3 +101,33 @@ def count(conversation_id: str) -> int:
     return conn.execute(
         "SELECT COUNT(*) FROM messages WHERE conversation_id = ?", (conversation_id,)
     ).fetchone()[0]
+
+
+# --- reflection support (autonomous memory) ------------------------------
+
+
+def messages_since(conversation_id: str, after_id: int = 0) -> list[tuple[int, dict]]:
+    """(row_id, message) pairs newer than ``after_id``, in order."""
+    rows = _connect().execute(
+        "SELECT id, message_json FROM messages WHERE conversation_id = ? AND id > ? ORDER BY id",
+        (conversation_id, after_id),
+    ).fetchall()
+    return [(r[0], json.loads(r[1])) for r in rows]
+
+
+def last_reflected(conversation_id: str) -> int:
+    row = _connect().execute(
+        "SELECT last_message_id FROM reflection_state WHERE conversation_id = ?",
+        (conversation_id,),
+    ).fetchone()
+    return row[0] if row else 0
+
+
+def set_reflected(conversation_id: str, last_message_id: int) -> None:
+    conn = _connect()
+    with conn:
+        conn.execute(
+            "INSERT INTO reflection_state (conversation_id, last_message_id) VALUES (?, ?) "
+            "ON CONFLICT(conversation_id) DO UPDATE SET last_message_id = excluded.last_message_id",
+            (conversation_id, last_message_id),
+        )

@@ -17,6 +17,7 @@ from config import settings
 from context import set_conversation
 from gate import is_authorized
 from memory import store
+from memory.reflect import maybe_reflect
 
 _QUIT = {"quit", "exit", ":q", "q"}
 _CONVERSATION_ID = "repl"
@@ -60,6 +61,10 @@ async def main() -> None:
         history = result.history
         # Persist just this turn's new messages (user + assistant/tool exchanges).
         store.append_messages(_CONVERSATION_ID, history[prior_len:])
+
+        learned = await maybe_reflect(_CONVERSATION_ID)
+        if learned:
+            print(f"      · learned: {', '.join(learned)}")
 
         print(f"\nasst › {result.reply or '(no reply)'}")
         if result.tools_used:

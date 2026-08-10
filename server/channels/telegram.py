@@ -23,6 +23,7 @@ from config import settings
 from context import set_conversation
 from gate import is_authorized
 from memory import store
+from memory.reflect import maybe_reflect
 
 _API = "https://api.telegram.org/bot{token}/{method}"
 
@@ -120,6 +121,18 @@ async def handle_update(update: dict) -> None:
     # Let the voice layer choose silence: only send a non-empty reply.
     if result.reply and result.reply.strip():
         await send(chat_id, result.reply)
+
+    # Learn from the conversation in the background — never blocks the reply.
+    asyncio.create_task(_reflect_bg(conversation_id))
+
+
+async def _reflect_bg(conversation_id: str) -> None:
+    try:
+        learned = await maybe_reflect(conversation_id)
+        if learned:
+            print(f"[reflect] learned: {learned}", flush=True)
+    except Exception as exc:
+        print("reflect error:", exc, flush=True)
 
 
 async def run_polling() -> None:

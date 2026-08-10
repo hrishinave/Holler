@@ -4,13 +4,17 @@ Enhancements deferred until Phases 4–6 (Telegram, proactivity, hardening) are 
 These are NOT in the initial plan; they're things we flagged while building.
 
 ## Memory
+- [x] Long-term / semantic memory (manual) — `memory/facts.py`: durable facts +
+      hard email skip/flag rules, injected into the system prompt and email triage.
+      Tools: remember / forget / list_memory / email_rule. **Built.** Limitation:
+      only learns when explicitly told.
+- [~] Autonomous learning ("reflection") — the bot extracts durable facts from the
+      natural flow of conversation on its own, no "remember" needed. Debounced
+      background pass over recent messages. **In progress** — the real win; makes
+      the manual version above not feel superficial.
 - [ ] Implement `memory/summarize.compact` for real — summarize old turns into a
       system note once a conversation grows; never split an assistant `tool_calls`
-      message from its `tool` results.
-- [ ] Long-term / semantic memory — a durable facts/profile store the agent writes
-      to and that's injected (or retrieved) every conversation, across chats. This
-      is what makes it feel like it "knows" you. (Today "memory" = replaying the
-      transcript only.)
+      message from its `tool` results. (Transcript still replays in full every turn.)
 - [ ] Wrap the sqlite calls in `asyncio.to_thread` under the async server.
 
 ## Model / answer quality
