@@ -22,7 +22,9 @@ These are NOT in the initial plan; they're things we flagged while building.
 ## Model / answer quality
 - [ ] Prompt nudge: when blocking time for a specific event, anchor the block to
       the event's actual start time (the SpaceX "8:30 PM vs 5:34 PM" slip).
-- [ ] Retry/backoff on OpenRouter 429/5xx; friendly handling of 402 (out of credits).
+- [x] Retry/backoff on 429/5xx in llm.chat() — honors the server's retry delay for
+      per-minute limits, fails fast on per-day quota. **Built** (verify_llm_retry).
+      Still open: friendly in-chat handling of 402 (out of credits) / per-day 429.
 - [ ] Consider a stronger model (or per-task routing) for multi-constraint reasoning.
 
 ## Tools
