@@ -10,7 +10,14 @@ from __future__ import annotations
 
 from .agent import Role, StopReason, TurnResult
 from .calendar import Attendee, CalendarEvent, CalendarInfo, EventDateTime
-from .email import EmailAddress, EmailMessage, EmailThread, OutgoingEmail
+from .email import (
+    EmailAddress,
+    EmailAttentionCategory,
+    EmailAttentionSignal,
+    EmailMessage,
+    EmailThread,
+    OutgoingEmail,
+)
 from .events import ProactiveEvent
 from .tools import ToolCall, ToolResult, ToolSpec, ToolStatus
 from .triggers import Trigger, TriggerStatus
@@ -29,6 +36,8 @@ __all__ = [
     "CalendarInfo",
     # email
     "EmailAddress",
+    "EmailAttentionCategory",
+    "EmailAttentionSignal",
     "EmailMessage",
     "EmailThread",
     "OutgoingEmail",

@@ -1,5 +1,5 @@
 """Phase 5b verification: the email monitor, deterministically (no Gmail, no
-model, no Telegram — poll/classify/send are injected).
+model, no Telegram — poll/fetch/classify/send are injectable).
 
 Run:  uv --directory server run python scripts/verify_phase5b.py
 """

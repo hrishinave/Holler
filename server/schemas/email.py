@@ -4,6 +4,8 @@ the outgoing-mail input contract. Finalized against the Composio port in Phase 2
 
 from __future__ import annotations
 
+from enum import Enum
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -36,6 +38,30 @@ class EmailMessage(BaseModel):
     body: str | None = None
     labels: list[str] = Field(default_factory=list)
     unread: bool = False
+
+
+class EmailAttentionCategory(str, Enum):
+    """The small set of inbox signals the proactive monitor understands."""
+
+    MEETING_REQUEST = "meeting_request"
+    ACTION_REQUIRED = "action_required"
+    DEADLINE = "deadline"
+    PERSONAL = "personal"
+    NOISE = "noise"
+
+
+class EmailAttentionSignal(BaseModel):
+    """Structured, evidence-bound interpretation of one incoming email."""
+
+    category: EmailAttentionCategory
+    should_notify: bool
+    who: str | None = None
+    request: str | None = None
+    duration_minutes: int | None = Field(default=None, ge=1, le=1440)
+    deadline: str | None = None
+    response_expected: bool = False
+    confidence: float = Field(default=0.0, ge=0.0, le=1.0)
+    notable_context: str | None = None
 
 
 class EmailThread(BaseModel):

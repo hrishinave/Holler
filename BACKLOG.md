@@ -35,6 +35,13 @@ These are NOT in the initial plan; they're things we flagged while building.
 ## Proactive delivery (now that there's a ProactiveEvent + notifier choke point)
 - [x] `ProactiveEvent` schema + `notifier.deliver()` choke point + outbox log +
       dedup; scheduler and email monitor route through it. **Built.**
+- [x] Structured inbox attention — monitors recent mail regardless of read state,
+      fetches full messages, extracts meeting/action/deadline intent under an
+      untrusted-content boundary, renders relevant signals through a dedicated
+      proactive voice prompt, and retries failed analysis. **Built.**
+- [ ] Calendar-aware meeting nudges — after a meeting request is detected, add a
+      read-only availability lookup and mention the first useful opening without
+      scheduling anything automatically.
 - [ ] Quiet hours — suppress/defer proactive events during e.g. 11pm–7am.
 - [ ] Batching / digest — coalesce several events (e.g. 3 new emails) into one
       message instead of a burst; also eases the model rate limit.

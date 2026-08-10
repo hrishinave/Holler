@@ -17,8 +17,10 @@ OpenRouter, a local model) and the code never changes.
 - **Web search** — read-only research via Tavily.
 - **Memory** — learns durable facts about you as you chat, and compacts long
   histories so context stays affordable.
-- **Proactivity** — reminders fire on schedule; an optional inbox monitor flags
-  important mail. Both run as background loops (need an always-on host).
+- **Proactivity** — reminders fire on schedule; an optional inbox attention
+  monitor reads new messages, recognizes meetings/actions/deadlines, and sends a
+  concise nudge when something deserves interruption. Both run as background
+  loops (need an always-on host).
 
 Side-effectful actions (sending email, deleting events, inviting people) are
 **gated in code** — the bot asks before it acts unless you approved in your own
@@ -100,5 +102,6 @@ Each phase ships a deterministic smoke test (mocked model/services):
 ```bash
 uv --directory server run python scripts/verify_memory.py
 uv --directory server run python scripts/verify_compaction.py
+uv --directory server run python scripts/verify_attention.py
 # ...and the other verify_*.py
 ```
