@@ -4,13 +4,19 @@ Enhancements deferred until Phases 4–6 (Telegram, proactivity, hardening) are 
 These are NOT in the initial plan; they're things we flagged while building.
 
 ## Memory
-- [ ] Implement `memory/summarize.compact` for real — summarize old turns into a
-      system note once a conversation grows; never split an assistant `tool_calls`
-      message from its `tool` results.
-- [ ] Long-term / semantic memory — a durable facts/profile store the agent writes
-      to and that's injected (or retrieved) every conversation, across chats. This
-      is what makes it feel like it "knows" you. (Today "memory" = replaying the
-      transcript only.)
+- [x] Long-term / semantic memory (manual) — `memory/facts.py`: durable facts +
+      hard email skip/flag rules, injected into the system prompt and email triage.
+      Tools: remember / forget / list_memory / email_rule. **Built.** Limitation:
+      only learns when explicitly told.
+- [x] Autonomous learning ("reflection") — `memory/reflect.py`: debounced
+      background pass extracts durable facts from conversation on its own, no
+      "remember" needed. **Built.**
+- [x] Compaction — `memory/summarize.compact`: rolling, non-destructive. Old turns
+      folded into a cached summary note, recent turns kept verbatim, cuts only on
+      user-message boundaries (never splits a tool exchange). **Built.** Fixes the
+      O(n^2) full-transcript replay.
+- [ ] Persist-summary is done; still open: make compaction run in the background
+      (off the reply path) instead of inline on the turn that crosses the threshold.
 - [ ] Wrap the sqlite calls in `asyncio.to_thread` under the async server.
 
 ## Model / answer quality
@@ -25,6 +31,14 @@ These are NOT in the initial plan; they're things we flagged while building.
 - [ ] `calendar_update` / move-event tool (we only have create + delete).
 - [ ] Optional `gmail_trash` / `gmail_label` (reversible housekeeping).
 - [ ] Timezone: in-chat override ("I'm in London this week") + travel detection (v2).
+
+## Proactive delivery (now that there's a ProactiveEvent + notifier choke point)
+- [x] `ProactiveEvent` schema + `notifier.deliver()` choke point + outbox log +
+      dedup; scheduler and email monitor route through it. **Built.**
+- [ ] Quiet hours — suppress/defer proactive events during e.g. 11pm–7am.
+- [ ] Batching / digest — coalesce several events (e.g. 3 new emails) into one
+      message instead of a burst; also eases the model rate limit.
+- [ ] Delivery retry from the outbox for transient send failures.
 
 ## Robustness / ops
 - [ ] Migrate `scripts/verify_*.py` into a proper pytest suite.

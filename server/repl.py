@@ -17,6 +17,8 @@ from config import settings
 from context import set_conversation
 from gate import is_authorized
 from memory import store
+from memory.reflect import maybe_reflect
+from memory.summarize import compact
 
 _QUIT = {"quit", "exit", ":q", "q"}
 _CONVERSATION_ID = "repl"
@@ -29,9 +31,9 @@ async def _ainput(prompt: str) -> str:
 
 async def main() -> None:
     print(f"personal-agent REPL  ·  model={settings.MODEL}  ·  tz={settings.HOME_TIMEZONE}")
-    history = store.load_history(_CONVERSATION_ID)
-    if history:
-        print(f"(resumed conversation — {len(history)} messages)")
+    resumed = store.count(_CONVERSATION_ID)
+    if resumed:
+        print(f"(resumed conversation — {resumed} messages)")
     print("Type a message. '/reset' to forget history, 'quit' to exit.\n")
 
     while True:
@@ -46,20 +48,24 @@ async def main() -> None:
             break
         if user_text.lower() == "/reset":
             store.clear(_CONVERSATION_ID)
-            history = []
+            store.clear_summary(_CONVERSATION_ID)
             print("history cleared\n")
             continue
 
-        prior_len = len(history)
         set_conversation(_CONVERSATION_ID)
+        raw = store.load_history(_CONVERSATION_ID)
+        view = await compact(_CONVERSATION_ID, raw)  # summary note + recent tail
         result = await run_turn(
             user_text,
-            history,
+            view,
             authorized_destructive=is_authorized(user_text),
         )
-        history = result.history
-        # Persist just this turn's new messages (user + assistant/tool exchanges).
-        store.append_messages(_CONVERSATION_ID, history[prior_len:])
+        # Persist just this turn's new messages (the summary note is synthetic).
+        store.append_messages(_CONVERSATION_ID, result.history[len(view):])
+
+        learned = await maybe_reflect(_CONVERSATION_ID)
+        if learned:
+            print(f"      · learned: {', '.join(learned)}")
 
         print(f"\nasst › {result.reply or '(no reply)'}")
         if result.tools_used:

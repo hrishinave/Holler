@@ -11,7 +11,6 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from memory import store  # noqa: E402
-from memory.summarize import compact  # noqa: E402
 
 ok = fail = 0
 
@@ -65,9 +64,6 @@ def main():
     store.clear(conv)
     check("clear empties one conversation", store.load_history(conv) == [])
     check("other conversation untouched", store.count("other-conv") == 1)
-
-    print("5) summarize stub is a safe passthrough")
-    check("compact returns input unchanged (v1)", compact(TURN) == TURN)
 
     print(f"\n{ok} passed, {fail} failed")
     sys.exit(1 if fail else 0)

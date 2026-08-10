@@ -16,7 +16,8 @@ import context  # noqa: E402
 from agent.tools.registry import TOOLS, DESTRUCTIVE_TOOLS, execute_tool  # noqa: E402
 from memory import store as mstore  # noqa: E402
 from proactivity import store as pstore  # noqa: E402
-from proactivity.scheduler import Scheduler, _chat_id, _next_fire  # noqa: E402
+from proactivity.notifier import _chat_id  # noqa: E402
+from proactivity.scheduler import Scheduler, _next_fire  # noqa: E402
 from schemas import TurnResult  # noqa: E402
 
 ok = fail = 0

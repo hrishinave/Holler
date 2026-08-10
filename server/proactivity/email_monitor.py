@@ -20,6 +20,8 @@ from agent.tools import gmail as gmail_tool
 from channels import telegram
 from config import settings
 from llm import chat
+from memory import facts
+from proactivity import notifier
 from proactivity import store as pstore
 from schemas import EmailMessage
 
@@ -53,7 +55,11 @@ async def _default_classify(msg: EmailMessage) -> str | None:
         f"New email:\nFrom: {sender}\nSubject: {msg.subject or '(none)'}\n"
         f"Preview: {msg.snippet or ''}"
     )
+    # Inject what we know about the user so triage is personalized, not generic.
     system = load_prompt("voice") + "\n\n" + _TRIAGE
+    known = facts.facts_block()
+    if known:
+        system += "\n\n" + known
     resp = await chat([{"role": "user", "content": prompt}], system=system)
     reply = (resp["choices"][0]["message"].get("content") or "").strip()
     if not reply or reply.upper().startswith("SKIP"):
@@ -102,10 +108,25 @@ class EmailMonitor:
             if not msg.id or pstore.email_seen(msg.id):
                 continue
             nudge: str | None = None
-            try:
-                nudge = await self._classify(msg)
-            except Exception as exc:
-                print("email classify error:", exc, flush=True)
+
+            # 1) Hard rules first — deterministic, no model call.
+            sender = str(msg.sender) if msg.sender else ""
+            rule = facts.match_email_pref(sender, msg.subject or "")
+            if rule == "skip":
+                nudge = None
+            elif rule == "flag":
+                who = msg.sender.name or msg.sender.email if msg.sender else "someone"
+                nudge = f"Heads up — email from {who}: {msg.subject or '(no subject)'}"
+            else:
+                # 2) Otherwise, facts-informed LLM triage.
+                try:
+                    nudge = await self._classify(msg)
+                except Exception as exc:
+                    print("email classify error:", exc, flush=True)
+
             if nudge:
-                await self._send(owner, nudge)
+                event = notifier.make_event(
+                    "email", f"tg:{owner}", nudge, dedup_key=f"email:{msg.id}"
+                )
+                await notifier.deliver(event, send=self._send)
             pstore.mark_email(msg.id, bool(nudge))

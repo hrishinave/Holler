@@ -23,6 +23,8 @@ from config import settings
 from context import set_conversation
 from gate import is_authorized
 from memory import store
+from memory.reflect import maybe_reflect
+from memory.summarize import compact
 
 _API = "https://api.telegram.org/bot{token}/{method}"
 
@@ -106,11 +108,13 @@ async def handle_update(update: dict) -> None:
     conversation_id = f"tg:{chat_id}"
     set_conversation(conversation_id)
     try:
-        history = store.load_history(conversation_id)
+        raw = store.load_history(conversation_id)
+        view = await compact(conversation_id, raw)  # summary note + recent tail
         result = await run_turn(
-            text, history, authorized_destructive=is_authorized(text)
+            text, view, authorized_destructive=is_authorized(text)
         )
-        store.append_messages(conversation_id, result.history[len(history):])
+        # Persist only this turn's new messages (the summary note is synthetic).
+        store.append_messages(conversation_id, result.history[len(view):])
     except Exception as exc:
         # Never leave the user hanging on an error (bad key, out of credits, etc.).
         print("turn error:", exc, flush=True)
@@ -120,6 +124,18 @@ async def handle_update(update: dict) -> None:
     # Let the voice layer choose silence: only send a non-empty reply.
     if result.reply and result.reply.strip():
         await send(chat_id, result.reply)
+
+    # Learn from the conversation in the background — never blocks the reply.
+    asyncio.create_task(_reflect_bg(conversation_id))
+
+
+async def _reflect_bg(conversation_id: str) -> None:
+    try:
+        learned = await maybe_reflect(conversation_id)
+        if learned:
+            print(f"[reflect] learned: {learned}", flush=True)
+    except Exception as exc:
+        print("reflect error:", exc, flush=True)
 
 
 async def run_polling() -> None:

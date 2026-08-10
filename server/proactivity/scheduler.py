@@ -20,6 +20,7 @@ from agent.loop import run_turn
 from channels import telegram
 from context import set_conversation
 from memory import store as mstore
+from proactivity import notifier
 from proactivity import store as pstore
 from schemas import Trigger
 
@@ -40,13 +41,6 @@ def _next_fire(repeat: str | None, current_iso: str) -> str | None:
     while nxt <= now:
         nxt += delta
     return nxt.strftime("%Y-%m-%dT%H:%M:%S")
-
-
-def _chat_id(conversation_id: str) -> str | None:
-    """Derive a Telegram chat id from a conversation id ('tg:<id>')."""
-    if conversation_id.startswith("tg:"):
-        return conversation_id[3:]
-    return None
 
 
 class Scheduler:
@@ -99,9 +93,11 @@ class Scheduler:
             mstore.append_messages(trig.conversation_id, result.history[len(history):])
 
             if result.reply and result.reply.strip():
-                chat_id = _chat_id(trig.conversation_id)
-                if chat_id:
-                    await self._send(chat_id, result.reply)
+                event = notifier.make_event(
+                    "trigger", trig.conversation_id, result.reply,
+                    dedup_key=f"trigger:{trig.id}:{trig.next_trigger}",
+                )
+                await notifier.deliver(event, send=self._send)
 
             nxt = _next_fire(trig.repeat, trig.next_trigger)
             if nxt:

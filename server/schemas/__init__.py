@@ -11,6 +11,7 @@ from __future__ import annotations
 from .agent import Role, StopReason, TurnResult
 from .calendar import Attendee, CalendarEvent, CalendarInfo, EventDateTime
 from .email import EmailAddress, EmailMessage, EmailThread, OutgoingEmail
+from .events import ProactiveEvent
 from .tools import ToolCall, ToolResult, ToolSpec, ToolStatus
 from .triggers import Trigger, TriggerStatus
 from .web import WebSearchResponse, WebSearchResult
@@ -41,4 +42,5 @@ __all__ = [
     # proactivity
     "Trigger",
     "TriggerStatus",
+    "ProactiveEvent",
 ]
