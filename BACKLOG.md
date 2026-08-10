@@ -30,6 +30,14 @@ These are NOT in the initial plan; they're things we flagged while building.
 - [ ] Optional `gmail_trash` / `gmail_label` (reversible housekeeping).
 - [ ] Timezone: in-chat override ("I'm in London this week") + travel detection (v2).
 
+## Proactive delivery (now that there's a ProactiveEvent + notifier choke point)
+- [x] `ProactiveEvent` schema + `notifier.deliver()` choke point + outbox log +
+      dedup; scheduler and email monitor route through it. **Built.**
+- [ ] Quiet hours — suppress/defer proactive events during e.g. 11pm–7am.
+- [ ] Batching / digest — coalesce several events (e.g. 3 new emails) into one
+      message instead of a burst; also eases the model rate limit.
+- [ ] Delivery retry from the outbox for transient send failures.
+
 ## Robustness / ops
 - [ ] Migrate `scripts/verify_*.py` into a proper pytest suite.
 - [ ] Structured logging + clearer error surfaces to the user.

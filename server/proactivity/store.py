@@ -31,6 +31,17 @@ CREATE TABLE IF NOT EXISTS processed_emails (
     notified   INTEGER NOT NULL DEFAULT 0,
     seen_at    TEXT DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS outbox (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    source          TEXT,
+    conversation_id TEXT,
+    content         TEXT,
+    dedup_key       TEXT,
+    delivered       INTEGER NOT NULL DEFAULT 0,
+    created_at      TEXT DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_outbox_dedup ON outbox (dedup_key);
 """
 
 _conn: sqlite3.Connection | None = None
@@ -145,3 +156,38 @@ def mark_email(message_id: str, notified: bool) -> None:
             "INSERT OR IGNORE INTO processed_emails (message_id, notified) VALUES (?, ?)",
             (message_id, 1 if notified else 0),
         )
+
+
+# --- outbox (proactive delivery log + dedup) -----------------------------
+
+
+def outbox_seen(dedup_key: str | None) -> bool:
+    """True if an event with this key was already *delivered* (so retries of
+    failed deliveries are still allowed)."""
+    if not dedup_key:
+        return False
+    row = _connect().execute(
+        "SELECT 1 FROM outbox WHERE dedup_key = ? AND delivered = 1 LIMIT 1", (dedup_key,)
+    ).fetchone()
+    return row is not None
+
+
+def record_outbox(source: str, conversation_id: str, content: str,
+                  dedup_key: str | None, delivered: bool) -> int:
+    conn = _connect()
+    with conn:
+        cur = conn.execute(
+            "INSERT INTO outbox (source, conversation_id, content, dedup_key, delivered) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (source, conversation_id, content, dedup_key, 1 if delivered else 0),
+        )
+    return int(cur.lastrowid)
+
+
+def outbox_recent(limit: int = 20) -> list[dict]:
+    rows = _connect().execute(
+        "SELECT id, source, conversation_id, content, delivered, created_at "
+        "FROM outbox ORDER BY id DESC LIMIT ?",
+        (limit,),
+    ).fetchall()
+    return [dict(r) for r in rows]

@@ -21,6 +21,7 @@ from channels import telegram
 from config import settings
 from llm import chat
 from memory import facts
+from proactivity import notifier
 from proactivity import store as pstore
 from schemas import EmailMessage
 
@@ -124,5 +125,8 @@ class EmailMonitor:
                     print("email classify error:", exc, flush=True)
 
             if nudge:
-                await self._send(owner, nudge)
+                event = notifier.make_event(
+                    "email", f"tg:{owner}", nudge, dedup_key=f"email:{msg.id}"
+                )
+                await notifier.deliver(event, send=self._send)
             pstore.mark_email(msg.id, bool(nudge))
