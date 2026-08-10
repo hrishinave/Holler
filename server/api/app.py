@@ -1,21 +1,38 @@
 """FastAPI server: the always-on process.
 
-For now it hosts the Telegram webhook — the same ``run_turn`` engine the REPL
-uses, just triggered by HTTP. Onboarding endpoints (Composio OAuth for the
-client UI) and the proactivity startup tasks (Phase 5) slot in here later.
+Hosts the Telegram webhook and runs the proactivity scheduler as a background
+task for its whole lifetime. Same ``run_turn`` engine the REPL uses.
 
 Run:  uv --directory server run uvicorn api.app:app --port 8000
 Set the webhook:  https://api.telegram.org/bot<TOKEN>/setWebhook?url=<PUBLIC_URL>/telegram/webhook
+
+NOTE: proactivity only fires while this process is up — it needs an always-on
+host (a laptop that sleeps = no 9pm reminder).
 """
 
 from __future__ import annotations
+
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 
 from channels import telegram
 from config import settings
+from proactivity.scheduler import Scheduler
 
-app = FastAPI(title="personal-agent")
+scheduler = Scheduler()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await scheduler.start()  # begin firing due triggers
+    try:
+        yield
+    finally:
+        await scheduler.stop()
+
+
+app = FastAPI(title="personal-agent", lifespan=lifespan)
 
 
 @app.get("/")

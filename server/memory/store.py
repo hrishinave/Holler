@@ -40,7 +40,9 @@ def _connect() -> sqlite3.Connection:
     if _conn is None:
         path = Path(settings.DB_PATH)
         path.parent.mkdir(parents=True, exist_ok=True)
-        _conn = sqlite3.connect(str(path))
+        # check_same_thread=False for consistency with the async server (tools/
+        # scheduler may touch stores from worker threads).
+        _conn = sqlite3.connect(str(path), check_same_thread=False)
         _conn.executescript(_SCHEMA)
     return _conn
 

@@ -19,6 +19,7 @@ from schemas import ToolResult, ToolSpec
 from .calendar import SPECS as CALENDAR_SPECS
 from .clock import SPEC as CLOCK_SPEC
 from .gmail import SPECS as GMAIL_SPECS
+from .triggers import SPECS as TRIGGER_SPECS
 from .web_search import SPEC as WEB_SEARCH_SPEC
 
 # --- registration --------------------------------------------------------
@@ -27,6 +28,7 @@ _SPECS: list[ToolSpec] = [
     *CALENDAR_SPECS,
     *GMAIL_SPECS,
     WEB_SEARCH_SPEC,
+    *TRIGGER_SPECS,
 ]
 
 TOOLS: dict[str, ToolSpec] = {s.name: s for s in _SPECS}

@@ -13,12 +13,14 @@ lean single-owner bot, replaced by a simple chat-id allowlist.
 
 from __future__ import annotations
 
+import asyncio
 import re
 
 import httpx
 
 from agent.loop import run_turn
 from config import settings
+from context import set_conversation
 from gate import is_authorized
 from memory import store
 
@@ -102,6 +104,7 @@ async def handle_update(update: dict) -> None:
         return
 
     conversation_id = f"tg:{chat_id}"
+    set_conversation(conversation_id)
     try:
         history = store.load_history(conversation_id)
         result = await run_turn(
@@ -130,13 +133,21 @@ async def run_polling() -> None:
         raise RuntimeError("TELEGRAM_BOT_TOKEN is not set")
     print("Telegram long-polling started. Message your bot. Ctrl-C to stop.")
     offset: int | None = None
-    async with httpx.AsyncClient(timeout=70.0) as client:
+    # read timeout must exceed the long-poll timeout; both errors are tolerated.
+    async with httpx.AsyncClient(timeout=httpx.Timeout(60.0, read=65.0)) as client:
         while True:
-            params: dict = {"timeout": 60}
+            params: dict = {"timeout": 50}
             if offset is not None:
                 params["offset"] = offset
-            resp = await client.get(_API.format(token=token, method="getUpdates"), params=params)
-            for upd in resp.json().get("result", []):
+            try:
+                resp = await client.get(_API.format(token=token, method="getUpdates"), params=params)
+                updates = resp.json().get("result", [])
+            except (httpx.HTTPError, ValueError) as exc:
+                # Network hiccup / timeout / bad JSON — log and keep polling.
+                print("poll fetch error, retrying:", exc, flush=True)
+                await asyncio.sleep(3)
+                continue
+            for upd in updates:
                 offset = upd["update_id"] + 1
                 parsed = extract(upd)
                 if parsed:
