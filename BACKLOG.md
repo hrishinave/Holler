@@ -40,6 +40,15 @@ These are NOT in the initial plan; they're things we flagged while building.
       message instead of a burst; also eases the model rate limit.
 - [ ] Delivery retry from the outbox for transient send failures.
 
+## Hosting / deploy (Phase 6)
+- [x] `Dockerfile` (uv, reproducible from `uv.lock`) + `docker-compose.yml` +
+      `.dockerignore`. Poller entrypoint by default (no public URL); `.env`
+      injected at runtime, DB volume-mounted, `restart: unless-stopped`. **Built
+      & build-verified.**
+- [x] README with quickstart, config table, and deploy instructions. **Built.**
+- [ ] Production webhook path is documented (commented in compose) but not
+      exercised end-to-end — needs a public host to test `setWebhook`.
+
 ## Robustness / ops
 - [ ] Migrate `scripts/verify_*.py` into a proper pytest suite.
 - [ ] Structured logging + clearer error surfaces to the user.

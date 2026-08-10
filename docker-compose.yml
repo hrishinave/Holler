@@ -1,0 +1,20 @@
+# Always-on host for the assistant. `docker compose up -d` and it runs unattended.
+#
+# NOTE: Docker does not make anything always-on by itself — run this on a host
+# that never sleeps (a small VPS, a Raspberry Pi, or a Mac set to never sleep).
+# On a laptop that sleeps, the proactivity loops sleep too.
+
+services:
+  bot:
+    build: ./server
+    env_file: server/.env          # secrets stay on the host, out of the image
+    volumes:
+      - ./server/data:/app/data    # SQLite DB (memory, facts, triggers) survives restarts
+    restart: unless-stopped        # self-heal on crash / host reboot
+
+    # Default command (from the Dockerfile) long-polls Telegram — no public URL.
+    # To use the FastAPI webhook instead, uncomment below and expose the port,
+    # then point Telegram's setWebhook at https://<your-host>/telegram/webhook
+    # command: uvicorn api.app:app --host 0.0.0.0 --port 8000
+    # ports:
+    #   - "8000:8000"

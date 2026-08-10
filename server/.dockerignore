@@ -1,0 +1,14 @@
+# Keep the build context (and image) small and secret-free.
+.env
+*.env
+!.env.example
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Local SQLite state — provided at runtime via a mounted volume, not baked in.
+data/
+
+.DS_Store
+.git/
