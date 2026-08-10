@@ -14,6 +14,7 @@ import asyncio
 
 from agent.loop import run_turn
 from config import settings
+from context import set_conversation
 from gate import is_authorized
 from memory import store
 
@@ -50,6 +51,7 @@ async def main() -> None:
             continue
 
         prior_len = len(history)
+        set_conversation(_CONVERSATION_ID)
         result = await run_turn(
             user_text,
             history,

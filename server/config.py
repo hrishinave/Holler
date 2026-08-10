@@ -47,6 +47,13 @@ class Settings(BaseSettings):
     # everyone — UNSAFE for a bot wired to your real Gmail/Calendar, so set this.
     TELEGRAM_ALLOWED_CHAT_IDS: str = ""
 
+    # --- Proactive email monitor ---------------------------------------------
+    # Off by default — it sends unprompted nudges about your real inbox.
+    EMAIL_MONITOR_ENABLED: bool = False
+    # Chat to notify; falls back to the first TELEGRAM_ALLOWED_CHAT_IDS entry.
+    OWNER_CHAT_ID: str = ""
+    EMAIL_POLL_SECONDS: int = 180
+
     # --- Storage -------------------------------------------------------------
     # SQLite file for the conversation log (created on first use).
     DB_PATH: str = str(Path(__file__).resolve().parent / "data" / "agent.db")
