@@ -1,12 +1,15 @@
-"""Gmail tools (Composio-backed): search / get / draft / send / reply.
+"""Gmail tools (Composio-backed): search / get / send / reply.
 
 Ported from autoagent's gmail composio_ops.py, adapted to emit our Pydantic
 schemas. Header parsing is preserved: From/To/Subject/Date live in
 ``payload.headers`` (not top-level), with flattened fallbacks for other toolkit
 versions.
 
-Gate posture: ``gmail_draft`` is un-gated (nothing leaves the outbox);
-``gmail_send`` and ``gmail_reply`` are unconditionally destructive.
+Gate posture: ``gmail_send`` and ``gmail_reply`` are unconditionally destructive.
+There is deliberately no draft tool — "draft an email" means compose a preview in
+the chat; nothing is written to Gmail until the user approves a send. (A real
+Gmail draft object would silently mutate the user's account, which surprised
+users who only wanted to *see* the email.)
 """
 
 from __future__ import annotations
@@ -93,12 +96,6 @@ class GmailGetArgs(BaseModel):
     message_id: str = Field(..., description="Id of the message to read in full.")
 
 
-class GmailDraftArgs(BaseModel):
-    to: str = Field(..., description="Recipient email address.")
-    subject: str
-    body: str
-
-
 class GmailSendArgs(BaseModel):
     to: str = Field(..., description="Recipient email address.")
     subject: str
@@ -122,19 +119,6 @@ def _gmail_get(message_id: str) -> ToolResult:
     wrapped = _messages_from(data)
     msg = _norm_message(wrapped[0] if wrapped else data, include_body=True)
     return ToolResult.ok(data=msg.model_dump())
-
-
-def _gmail_draft(to: str, subject: str, body: str) -> ToolResult:
-    data = _composio.execute(
-        "GMAIL_CREATE_EMAIL_DRAFT", {"recipient_email": to, "subject": subject, "body": body}
-    )
-    return ToolResult.ok(
-        data={
-            "draft_id": first(data, "id", "draftId", "draft_id") or None,
-            "thread_id": first(data, "threadId", "thread_id") or None,
-        },
-        note="Draft saved.",
-    )
 
 
 def _gmail_send(to: str, subject: str, body: str, thread_id: str | None = None) -> ToolResult:
@@ -177,12 +161,6 @@ GMAIL_GET_SPEC = ToolSpec.from_model(
     args_model=GmailGetArgs,
     handler=_gmail_get,
 )
-GMAIL_DRAFT_SPEC = ToolSpec.from_model(
-    name="gmail_draft",
-    description="Save a draft email (not sent). Use this to compose before sending.",
-    args_model=GmailDraftArgs,
-    handler=_gmail_draft,
-)
 GMAIL_SEND_SPEC = ToolSpec.from_model(
     name="gmail_send",
     description="Send a new email. Requires the user's confirmation.",
@@ -198,4 +176,4 @@ GMAIL_REPLY_SPEC = ToolSpec.from_model(
     destructive=True,
 )
 
-SPECS = [GMAIL_SEARCH_SPEC, GMAIL_GET_SPEC, GMAIL_DRAFT_SPEC, GMAIL_SEND_SPEC, GMAIL_REPLY_SPEC]
+SPECS = [GMAIL_SEARCH_SPEC, GMAIL_GET_SPEC, GMAIL_SEND_SPEC, GMAIL_REPLY_SPEC]

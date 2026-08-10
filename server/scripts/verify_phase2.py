@@ -102,8 +102,9 @@ async def main():
 
     print("1) registry integration")
     for name in ("calendar_list", "calendar_create", "calendar_delete",
-                 "gmail_search", "gmail_get", "gmail_draft", "gmail_send", "gmail_reply"):
+                 "gmail_search", "gmail_get", "gmail_send", "gmail_reply"):
         check(f"{name} registered", name in TOOLS)
+    check("no Gmail draft tool (compose is in-chat only)", "gmail_draft" not in TOOLS)
     check("schemas advertised for all", len(TOOL_SCHEMAS) == len(TOOLS))
     check("DESTRUCTIVE = delete/send/reply",
           DESTRUCTIVE_TOOLS == {"calendar_delete", "gmail_send", "gmail_reply"})
@@ -133,7 +134,7 @@ async def main():
     check("duration derived (0h 30m)",
           create_args["event_duration_hour"] == 0 and create_args["event_duration_minutes"] == 30)
 
-    print("4) gmail search/get/draft normalization")
+    print("4) gmail search/get normalization")
     r = await execute_tool("gmail_search", {"query": "is:unread"})
     m0 = r["data"]["messages"][0]
     check("sender parsed to address+name", m0["sender"]["email"] == "alice@example.com" and m0["sender"]["name"] == "Alice")
@@ -141,8 +142,6 @@ async def main():
     check("unread flag from labels", m0["unread"] is True)
     full = await execute_tool("gmail_get", {"message_id": "m1"})
     check("get includes body", "meet" in (full["data"]["body"] or "").lower())
-    d = await execute_tool("gmail_draft", {"to": "x@y.com", "subject": "Hi", "body": "yo"})
-    check("draft id returned", d["data"]["draft_id"] == "draft123")
 
     print("5) gmail_reply derives recipient/subject/thread from original")
     fake.calls.clear()
