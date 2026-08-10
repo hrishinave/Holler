@@ -22,15 +22,15 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # --- BYOK via OpenRouter -------------------------------------------------
-    # One key, one base URL, any model by slug (see https://openrouter.ai/models).
-    # Examples: "google/gemini-2.0-flash-exp:free" (free), "anthropic/claude-opus-4"
-    # (paid). The ":free" suffix selects a free-tier variant when one exists.
-    MODEL: str = "google/gemini-3.6-flash"
-    OPENROUTER_API_KEY: str = ""
-    OPENROUTER_BASE_URL: str = "https://openrouter.ai/api/v1"
-    # Cap output tokens. Keeps replies terse, bounds cost, and avoids OpenRouter
-    # reserving the model's full context window against your credit balance (402).
+    # --- BYOK: any OpenAI-compatible LLM endpoint ---------------------------
+    # A provider is just a base URL + key + model name; the code never changes.
+    # Default: Google Gemini's OpenAI-compat endpoint (direct key, generous free
+    # tier). For OpenRouter: LLM_BASE_URL=https://openrouter.ai/api/v1 and a
+    # slug MODEL like "google/gemini-3.6-flash".
+    MODEL: str = "gemini-3.6-flash"
+    LLM_API_KEY: str = ""
+    LLM_BASE_URL: str = "https://generativelanguage.googleapis.com/v1beta/openai/"
+    # Cap output tokens — keeps replies terse and bounds cost.
     MAX_TOKENS: int = 2048
 
     # --- Composio (calendar + gmail) ----------------------------------------
@@ -40,6 +40,12 @@ class Settings(BaseSettings):
 
     # --- Web search (Tavily) -------------------------------------------------
     TAVILY_API_KEY: str = ""
+
+    # --- Telegram ------------------------------------------------------------
+    TELEGRAM_BOT_TOKEN: str = ""
+    # Comma-separated Telegram chat ids allowed to use the bot. EMPTY = allow
+    # everyone — UNSAFE for a bot wired to your real Gmail/Calendar, so set this.
+    TELEGRAM_ALLOWED_CHAT_IDS: str = ""
 
     # --- Storage -------------------------------------------------------------
     # SQLite file for the conversation log (created on first use).

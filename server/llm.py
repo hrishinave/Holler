@@ -1,13 +1,15 @@
-"""The BYOK seam: one provider-agnostic ``chat()``, via OpenRouter.
+"""The BYOK seam: one provider-agnostic ``chat()``.
 
-OpenRouter exposes an OpenAI-compatible endpoint, so we drive it with the
-official ``openai`` async client pointed at OpenRouter's base URL. The whole app
-makes exactly one kind of model call; swap models by changing ``MODEL`` in the
-env. Return shape is standard OpenAI JSON (``choices[0].message`` with optional
-``tool_calls``), so the loop and schemas never change.
+We drive any OpenAI-compatible endpoint with the official ``openai`` async client
+pointed at ``LLM_BASE_URL`` with ``LLM_API_KEY``. Default is Google Gemini's
+OpenAI-compat endpoint; OpenRouter, a local server, etc. are just a different
+base URL + key + model name. Return shape is standard OpenAI JSON
+(``choices[0].message`` with optional ``tool_calls``), so the loop and schemas
+never change.
 
-Caveat (documented, not fixable here): OpenRouter normalizes the *API*, not model
-*quality*. Tool-calling is reliable on Gemini/Claude, flaky on small models.
+Caveat (documented, not fixable here): the OpenAI-compat layer normalizes the
+*API*, not model *quality*. Tool-calling is reliable on Gemini/Claude, flaky on
+small models.
 """
 
 from __future__ import annotations
@@ -24,10 +26,8 @@ def _client_or_init() -> AsyncOpenAI:
     global _client
     if _client is None:
         _client = AsyncOpenAI(
-            base_url=settings.OPENROUTER_BASE_URL,
-            api_key=settings.OPENROUTER_API_KEY,
-            # Optional OpenRouter attribution; harmless if unused.
-            default_headers={"X-Title": "personal-agent"},
+            base_url=settings.LLM_BASE_URL,
+            api_key=settings.LLM_API_KEY,
         )
     return _client
 
