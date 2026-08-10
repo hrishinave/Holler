@@ -1,9 +1,12 @@
 """Proactive inbox attention, with no action authority.
 
-The monitor polls recent inbox mail (read or unread), deduplicates by Gmail
-message id, fetches the full body, extracts a small structured attention signal,
-and renders relevant signals as one natural Telegram nudge. Email content is
-always untrusted data. This path never runs the agent loop or action tools.
+The monitor polls recent *unread* inbox mail, deduplicates by Gmail message id,
+fetches the full body, extracts a small structured attention signal, and renders
+relevant signals as one natural Telegram nudge. Unread is the "you haven't
+handled this yet" signal — reading a mail (and certainly replying to it) clears
+UNREAD, so the monitor never nags about mail you've already seen or answered.
+Email content is always untrusted data. This path never runs the agent loop or
+action tools.
 
 Off unless ``EMAIL_MONITOR_ENABLED`` because it sends unsolicited notifications
 about a real inbox. ``poll`` / ``fetch`` / ``classify`` / ``send`` are injectable
@@ -37,10 +40,15 @@ def _owner_chat_id() -> str:
 
 
 def _default_poll() -> list[EmailMessage]:
-    """Return recent inbox candidates; processed ids, not unread state, drive dedup."""
+    """Return recent UNREAD inbox candidates.
+
+    Unread filters out mail you've already read or replied to (both clear the
+    UNREAD label), so the monitor doesn't nudge about things you've handled.
+    Processed ids still guard against re-notifying the same message.
+    """
     data = _composio.execute(
         "GMAIL_FETCH_EMAILS",
-        {"query": "in:inbox newer_than:2d", "max_results": 10},
+        {"query": "is:unread in:inbox newer_than:2d", "max_results": 10},
     )
     return [gmail_tool._norm_message(m, include_body=False) for m in gmail_tool._messages_from(data)]
 

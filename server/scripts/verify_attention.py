@@ -121,7 +121,7 @@ async def main() -> None:
     check("noise produces no notification", nudge is None)
     check("noise costs only the analysis call", len(noise_calls) == 1)
 
-    print("4) polling does not depend on unread state")
+    print("4) polling is limited to unread (already-handled mail is skipped)")
     captured_query = None
     original_execute = em._composio.execute
 
@@ -135,8 +135,8 @@ async def main() -> None:
         check("empty poll normalizes successfully", em._default_poll() == [])
     finally:
         em._composio.execute = original_execute
-    check("poll searches recent inbox", captured_query == "in:inbox newer_than:2d")
-    check("poll query does not require unread", "unread" not in (captured_query or ""))
+    check("poll searches recent unread inbox", captured_query == "is:unread in:inbox newer_than:2d")
+    check("poll requires unread (skips already-read/replied mail)", "is:unread" in (captured_query or ""))
 
     print("5) monitor fetches the full body before classification")
     summary = EmailMessage(

@@ -18,9 +18,10 @@ OpenRouter, a local model) and the code never changes.
 - **Memory** — learns durable facts about you as you chat, and compacts long
   histories so context stays affordable.
 - **Proactivity** — reminders fire on schedule; an optional inbox attention
-  monitor reads new messages, recognizes meetings/actions/deadlines, and sends a
-  concise nudge when something deserves interruption. Both run as background
-  loops (need an always-on host).
+  monitor reads new *unread* messages, recognizes meetings/actions/deadlines, and
+  sends a concise nudge when something deserves interruption (mail you've already
+  read or replied to is left alone). Both run as background loops (need an
+  always-on host).
 
 Side-effectful actions (sending email, deleting events, inviting people) are
 **gated in code** — the bot asks before it acts unless you approved in your own
