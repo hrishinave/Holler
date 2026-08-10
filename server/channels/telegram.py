@@ -24,6 +24,7 @@ from context import set_conversation
 from gate import is_authorized
 from memory import store
 from memory.reflect import maybe_reflect
+from memory.summarize import compact
 
 _API = "https://api.telegram.org/bot{token}/{method}"
 
@@ -107,11 +108,13 @@ async def handle_update(update: dict) -> None:
     conversation_id = f"tg:{chat_id}"
     set_conversation(conversation_id)
     try:
-        history = store.load_history(conversation_id)
+        raw = store.load_history(conversation_id)
+        view = await compact(conversation_id, raw)  # summary note + recent tail
         result = await run_turn(
-            text, history, authorized_destructive=is_authorized(text)
+            text, view, authorized_destructive=is_authorized(text)
         )
-        store.append_messages(conversation_id, result.history[len(history):])
+        # Persist only this turn's new messages (the summary note is synthetic).
+        store.append_messages(conversation_id, result.history[len(view):])
     except Exception as exc:
         # Never leave the user hanging on an error (bad key, out of credits, etc.).
         print("turn error:", exc, flush=True)

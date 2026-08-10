@@ -35,6 +35,12 @@ CREATE TABLE IF NOT EXISTS reflection_state (
     conversation_id TEXT PRIMARY KEY,
     last_message_id INTEGER NOT NULL DEFAULT 0
 );
+
+CREATE TABLE IF NOT EXISTS summaries (
+    conversation_id TEXT PRIMARY KEY,
+    covered_count   INTEGER NOT NULL,   -- how many leading messages the summary covers
+    summary         TEXT NOT NULL
+);
 """
 
 _conn: sqlite3.Connection | None = None
@@ -131,3 +137,31 @@ def set_reflected(conversation_id: str, last_message_id: int) -> None:
             "ON CONFLICT(conversation_id) DO UPDATE SET last_message_id = excluded.last_message_id",
             (conversation_id, last_message_id),
         )
+
+
+# --- compaction checkpoints ----------------------------------------------
+
+
+def get_summary(conversation_id: str) -> tuple[int, str] | None:
+    row = _connect().execute(
+        "SELECT covered_count, summary FROM summaries WHERE conversation_id = ?",
+        (conversation_id,),
+    ).fetchone()
+    return (row[0], row[1]) if row else None
+
+
+def set_summary(conversation_id: str, covered_count: int, summary: str) -> None:
+    conn = _connect()
+    with conn:
+        conn.execute(
+            "INSERT INTO summaries (conversation_id, covered_count, summary) VALUES (?, ?, ?) "
+            "ON CONFLICT(conversation_id) DO UPDATE SET "
+            "covered_count = excluded.covered_count, summary = excluded.summary",
+            (conversation_id, covered_count, summary),
+        )
+
+
+def clear_summary(conversation_id: str) -> None:
+    conn = _connect()
+    with conn:
+        conn.execute("DELETE FROM summaries WHERE conversation_id = ?", (conversation_id,))

@@ -8,13 +8,15 @@ These are NOT in the initial plan; they're things we flagged while building.
       hard email skip/flag rules, injected into the system prompt and email triage.
       Tools: remember / forget / list_memory / email_rule. **Built.** Limitation:
       only learns when explicitly told.
-- [~] Autonomous learning ("reflection") — the bot extracts durable facts from the
-      natural flow of conversation on its own, no "remember" needed. Debounced
-      background pass over recent messages. **In progress** — the real win; makes
-      the manual version above not feel superficial.
-- [ ] Implement `memory/summarize.compact` for real — summarize old turns into a
-      system note once a conversation grows; never split an assistant `tool_calls`
-      message from its `tool` results. (Transcript still replays in full every turn.)
+- [x] Autonomous learning ("reflection") — `memory/reflect.py`: debounced
+      background pass extracts durable facts from conversation on its own, no
+      "remember" needed. **Built.**
+- [x] Compaction — `memory/summarize.compact`: rolling, non-destructive. Old turns
+      folded into a cached summary note, recent turns kept verbatim, cuts only on
+      user-message boundaries (never splits a tool exchange). **Built.** Fixes the
+      O(n^2) full-transcript replay.
+- [ ] Persist-summary is done; still open: make compaction run in the background
+      (off the reply path) instead of inline on the turn that crosses the threshold.
 - [ ] Wrap the sqlite calls in `asyncio.to_thread` under the async server.
 
 ## Model / answer quality
