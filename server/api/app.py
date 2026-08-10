@@ -18,18 +18,23 @@ from fastapi import FastAPI, Request
 
 from channels import telegram
 from config import settings
+from proactivity.email_monitor import EmailMonitor
 from proactivity.scheduler import Scheduler
 
 scheduler = Scheduler()
+email_monitor = EmailMonitor()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await scheduler.start()  # begin firing due triggers
+    if settings.EMAIL_MONITOR_ENABLED:
+        await email_monitor.start()  # begin watching the inbox
     try:
         yield
     finally:
         await scheduler.stop()
+        await email_monitor.stop()
 
 
 app = FastAPI(title="personal-agent", lifespan=lifespan)

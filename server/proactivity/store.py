@@ -25,6 +25,12 @@ CREATE TABLE IF NOT EXISTS triggers (
     created_at      TEXT DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_triggers_due ON triggers (status, next_trigger);
+
+CREATE TABLE IF NOT EXISTS processed_emails (
+    message_id TEXT PRIMARY KEY,
+    notified   INTEGER NOT NULL DEFAULT 0,
+    seen_at    TEXT DEFAULT CURRENT_TIMESTAMP
+);
 """
 
 _conn: sqlite3.Connection | None = None
@@ -120,3 +126,22 @@ def cancel(trigger_id: int) -> bool:
             (trigger_id,),
         )
     return cur.rowcount > 0
+
+
+# --- processed emails (email monitor) ------------------------------------
+
+
+def email_seen(message_id: str) -> bool:
+    row = _connect().execute(
+        "SELECT 1 FROM processed_emails WHERE message_id = ?", (message_id,)
+    ).fetchone()
+    return row is not None
+
+
+def mark_email(message_id: str, notified: bool) -> None:
+    conn = _connect()
+    with conn:
+        conn.execute(
+            "INSERT OR IGNORE INTO processed_emails (message_id, notified) VALUES (?, ?)",
+            (message_id, 1 if notified else 0),
+        )
