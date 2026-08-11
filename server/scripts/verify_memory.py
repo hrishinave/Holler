@@ -14,6 +14,7 @@ from datetime import datetime, timedelta, timezone
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from memory import facts  # noqa: E402
+from memory import store as mstore  # noqa: E402
 from proactivity import store as pstore  # noqa: E402
 from proactivity.email_monitor import EmailMonitor  # noqa: E402
 from schemas import EmailAddress, EmailMessage, MemorySource, MemoryStrength  # noqa: E402
@@ -34,6 +35,7 @@ def _active_for(key):
 async def main():
     facts.set_connection(sqlite3.connect(":memory:", check_same_thread=False))
     pstore.set_connection(sqlite3.connect(":memory:", check_same_thread=False))
+    mstore.set_connection(sqlite3.connect(":memory:", check_same_thread=False))
 
     from agent.tools.registry import TOOLS, execute_tool
 

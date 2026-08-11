@@ -15,6 +15,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from memory import store as mstore  # noqa: E402
 from proactivity import email_monitor as em  # noqa: E402
 from proactivity import store as pstore  # noqa: E402
 from schemas import EmailAddress, EmailAttentionCategory, EmailMessage  # noqa: E402
@@ -35,6 +36,7 @@ def completion(content: str) -> dict:
 async def main() -> None:
     global ok, fail
     pstore.set_connection(sqlite3.connect(":memory:", check_same_thread=False))
+    mstore.set_connection(sqlite3.connect(":memory:", check_same_thread=False))
 
     print("1) JSON parsing + deterministic self-email detection")
     parsed = em._json_object('```json\n{"category": "noise"}\n```')

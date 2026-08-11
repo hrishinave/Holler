@@ -48,6 +48,12 @@ These are NOT in the initial plan; they're things we flagged while building.
 - [ ] Batching / digest — coalesce several events (e.g. 3 new emails) into one
       message instead of a burst; also eases the model rate limit.
 - [ ] Delivery retry from the outbox for transient send failures.
+- [x] Proactive messages the user receives must enter the conversation transcript
+      so they can reply to them ("accept that", "reply yes") with context. Email
+      nudges now append to `memory.store` on delivery. **Built.**
+- [ ] Unify this in `notifier.deliver` (the single choke point) instead of per
+      source, and stop the scheduler from appending its internal trigger prompt as
+      a fake `user` message (record only the user-facing assistant message).
 
 ## Hosting / deploy (Phase 6)
 - [x] `Dockerfile` (uv, reproducible from `uv.lock`) + `docker-compose.yml` +

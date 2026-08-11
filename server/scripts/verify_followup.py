@@ -15,6 +15,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import proactivity.email_monitor as em  # noqa: E402
 from config import settings  # noqa: E402
+from memory import store as mstore  # noqa: E402
 from proactivity import store as pstore  # noqa: E402
 from schemas import EmailAddress, EmailMessage  # noqa: E402
 
@@ -44,12 +45,15 @@ def _inbox():
 
 async def main():
     settings.EMAIL_FOLLOWUP_HOURS = 3.0
+    mstore.set_connection(sqlite3.connect(":memory:", check_same_thread=False))
 
     print("1) a flagged email schedules exactly one future follow-up")
     pstore.set_connection(sqlite3.connect(":memory:", check_same_thread=False))
     sent = []
     await _monitor(sent, "Sam needs your sign-off on the contract").tick()
     check("the nudge was sent", len(sent) == 1)
+    check("the nudge is recorded in the transcript (repliable)",
+          any("sign-off" in m.get("content", "") for m in mstore.load_history("tg:123")))
     triggers = pstore.due("2999-01-01T00:00:00")  # everything up to far future
     check("one follow-up trigger created", len(triggers) == 1)
     t = triggers[0]

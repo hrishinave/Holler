@@ -28,6 +28,7 @@ from channels import telegram
 from config import settings
 from llm import chat
 from memory import facts
+from memory import store as mstore
 from proactivity import notifier
 from proactivity import store as pstore
 from schemas import EmailAttentionCategory, EmailAttentionSignal, EmailMessage
@@ -271,8 +272,12 @@ class EmailMonitor:
                 event = notifier.make_event(
                     "email", f"tg:{owner}", nudge, dedup_key=f"email:{summary.id}"
                 )
-                await notifier.deliver(event, send=self._send)
-                self._schedule_followup(owner, notified_msg, nudge)
+                delivered = await notifier.deliver(event, send=self._send)
+                if delivered:
+                    # Record the nudge in the transcript so the user can reply to
+                    # it naturally ("accept that / reply yes") with full context.
+                    mstore.append_messages(f"tg:{owner}", [{"role": "assistant", "content": nudge}])
+                    self._schedule_followup(owner, notified_msg, nudge)
             pstore.mark_email(summary.id, bool(nudge))
 
     def _schedule_followup(self, owner: str, msg: EmailMessage, nudge: str) -> None:
