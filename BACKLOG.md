@@ -63,6 +63,40 @@ These are NOT in the initial plan; they're things we flagged while building.
 - [ ] Structured logging + clearer error surfaces to the user.
 - [ ] Cost / rate-limit guardrails.
 
-## Onboarding (if not fully covered by the Telegram/hosting phase)
-- [ ] `client/` React onboarding UI — Connect Gmail/Calendar via Composio OAuth.
-- [ ] Composio connection status checks + re-auth flow.
+## Onboarding — in-chat OAuth connect (the priority approach)
+The way Poke / folk.com do it, and the highest-leverage thing for "everyone can
+fork and plug in": the bot onboards you *in the conversation*, not via a manual
+setup. Ask "what can you do?" → it offers "want to connect Gmail?" → you say yes →
+it drops a Composio OAuth link in chat → you click, log in with Google, done.
+Natural, not forced. This supersedes the CLI-`setup` idea; the React UI below
+becomes optional.
+
+Feasibility confirmed against the installed SDK (composio 0.18.2):
+- `toolkits.authorize(user_id, toolkit)` → returns a `redirect_url` to send in chat.
+- `connected_accounts.wait_for_connection()` / `.list(user_id=...)` → connection status.
+- Composio hosts the OAuth callback, so we run no callback server.
+
+Work items:
+- [ ] **Generalize the entity id.** Stop pinning every Composio call to the
+      hardcoded `COMPOSIO_ENTITY_ID`; derive the Composio `user_id` from the current
+      chat via the `current_conversation` ContextVar (see `agent/tools/_composio.py`
+      `execute()`). Each user's connections live in their own namespace; a single-owner
+      fork just has one. **This also removes the baked-in entity id leaking through
+      `.env.example`.**
+- [ ] **`connect_service` tool** (gmail | googlecalendar | outlook) → initiate + return
+      the OAuth link. **`connection_status` tool** → what's connected, so the agent can
+      gate actions.
+- [ ] **Graceful "not connected"** — when a Gmail/Calendar tool fails for lack of a
+      connection, offer the connect link instead of erroring.
+- [ ] **Prompt nudge** — onboard naturally: offer to connect on "what can you do?" or
+      the first time a needed service isn't connected. Never forced.
+- [ ] **Auth configs / zero-setup** — default to Composio *managed auth* for Google so a
+      forker needs only a Composio API key (no Google Cloud project); create/reuse a
+      default auth config via `auth_configs.create` on first connect. Document the
+      bring-your-own-Google-OAuth path as the alternative.
+- [ ] Security: always initiate for the *authenticated* chat sender's user_id so users
+      can't connect into each other's namespace.
+
+## Onboarding — later / optional
+- [ ] `client/` React onboarding UI — only if a web flow is wanted on top of in-chat.
+- [ ] Re-auth flow when a connection expires or is revoked.
