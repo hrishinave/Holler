@@ -67,6 +67,17 @@ async def main():
     res = await execute_tool("get_current_time", {"timezone": "Asia/Tokyo"})
     check("clock returns ok", res["status"] == "ok")
     check("clock reports Tokyo tz", res["data"]["timezone"] == "Asia/Tokyo")
+    # Weekday->date resolution is a lookup, not arithmetic (fixes the "Thursday"
+    # off-by-one). Verify every mapped weekday actually lands on that weekday.
+    import datetime as _dt
+    d = res["data"]
+    up = d["upcoming"]
+    check("clock returns weekday + date", "weekday" in d and "date" in d)
+    check("upcoming weekday->date always lands on that weekday",
+          all(_dt.date.fromisoformat(v).strftime("%A") == k
+              for k, v in up.items() if k not in ("today", "tomorrow")))
+    check("tomorrow resolves to today+1",
+          _dt.date.fromisoformat(up["tomorrow"]) == _dt.date.fromisoformat(d["date"]) + _dt.timedelta(days=1))
     bad = await execute_tool("get_current_time", {"timezone": "Not/AZone"})
     check("bad timezone -> error", bad["status"] == "error")
     unknown = await execute_tool("nope", {})

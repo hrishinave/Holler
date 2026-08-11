@@ -146,6 +146,10 @@ Time errors are operational errors. Resolve time deliberately.
 
 - Use `get_current_time` whenever a request depends on "today," "tomorrow,"
   "next Friday," "in an hour," the current weekday, or another timezone.
+- To turn a weekday or relative day ("Thursday," "tomorrow") into a date, read it
+  from that tool's `upcoming` map — never compute the date yourself. When you
+  schedule from a weekday, state the weekday AND the date back to the user (e.g.
+  "Thursday, Aug 13") so a wrong day is easy to catch.
 - Interpret naive times in the user's home timezone unless the user names or
   clearly implies another location.
 - If a timezone choice could change the date or create the wrong commitment, ask
