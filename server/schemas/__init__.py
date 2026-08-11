@@ -20,6 +20,15 @@ from .email import (
 )
 from .events import ProactiveEvent
 from .gate import PendingAction, PendingStatus
+from .memory import (
+    MemoryItem,
+    MemoryKind,
+    MemoryProposal,
+    MemorySource,
+    MemoryStatus,
+    MemoryStrength,
+    SOURCE_AUTHORITY,
+)
 from .tools import ToolCall, ToolResult, ToolSpec, ToolStatus
 from .triggers import Trigger, TriggerStatus
 from .web import WebSearchResponse, WebSearchResult
@@ -56,4 +65,12 @@ __all__ = [
     # gate
     "PendingAction",
     "PendingStatus",
+    # memory
+    "MemoryItem",
+    "MemoryKind",
+    "MemoryProposal",
+    "MemorySource",
+    "MemoryStatus",
+    "MemoryStrength",
+    "SOURCE_AUTHORITY",
 ]

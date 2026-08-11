@@ -16,6 +16,11 @@ venv/
 # SQLite (later phases)
 *.db
 *.sqlite3
+*.db-wal
+*.db-shm
+*.bak-*
+# Runtime data dir (DB + WAL sidecars + backups)
+server/data/
 
 # Node / client (React/Next onboarding UI)
 node_modules/

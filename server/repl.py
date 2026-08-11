@@ -62,7 +62,7 @@ async def main() -> None:
 
         learned = await maybe_reflect(_CONVERSATION_ID)
         if learned:
-            print(f"      · learned: {', '.join(learned)}")
+            print(f"      · learned {len(learned)} belief(s)")
 
         print(f"\nasst › {result.reply or '(no reply)'}")
         if result.tools_used:

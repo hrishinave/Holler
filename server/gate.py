@@ -107,12 +107,21 @@ CREATE INDEX IF NOT EXISTS idx_pending_conv ON pending_actions (conversation_id,
 _conn: sqlite3.Connection | None = None
 
 
+def _apply_pragmas(conn: sqlite3.Connection) -> None:
+    try:
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA busy_timeout=5000")
+    except sqlite3.OperationalError:
+        pass
+
+
 def _connect() -> sqlite3.Connection:
     global _conn
     if _conn is None:
         path = Path(settings.DB_PATH)
         path.parent.mkdir(parents=True, exist_ok=True)
         _conn = sqlite3.connect(str(path), check_same_thread=False)
+        _apply_pragmas(_conn)
         _conn.executescript(_SCHEMA)
     return _conn
 
@@ -122,6 +131,7 @@ def set_connection(conn: sqlite3.Connection | None) -> None:
     global _conn
     _conn = conn
     if conn is not None:
+        _apply_pragmas(conn)
         conn.executescript(_SCHEMA)
 
 

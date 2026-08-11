@@ -9,19 +9,31 @@ from __future__ import annotations
 from pydantic import BaseModel, Field
 
 from memory import facts
-from schemas import ToolResult, ToolSpec
+from schemas import MemoryKind, MemorySource, MemoryStrength, ToolResult, ToolSpec
 
 
 class RememberArgs(BaseModel):
     fact: str = Field(
-        ..., description="A durable fact or preference about the user to remember, "
-        "e.g. 'My manager is Priya', 'I don't care about security alerts', "
-        "'I prefer morning workouts'."
+        ..., description="A durable fact or preference the user stated, e.g. "
+        "'My manager is Priya', 'I prefer morning workouts'."
+    )
+    kind: str = Field(
+        "fact", description="One of: identity, relationship, preference, constraint, "
+        "routine, fact. Pick the closest.",
+    )
+    hard_rule: bool = Field(
+        False, description="True only for an explicit hard rule the user set "
+        "('never schedule me before 10'). Otherwise it's a preference.",
+    )
+    canonical_key: str = Field(
+        "", description="Reuse a stable dotted key (e.g. 'relationship.manager') "
+        "when CORRECTING an earlier belief on the same topic, so it replaces the old "
+        "one instead of adding a duplicate. Leave empty for a brand-new fact.",
     )
 
 
 class ForgetArgs(BaseModel):
-    fact_id: int = Field(..., description="Id of the fact to forget (from list_memory).")
+    fact_id: int = Field(..., description="Id of the memory to forget (from list_memory).")
 
 
 class EmailRuleArgs(BaseModel):
@@ -36,18 +48,34 @@ class NoArgs(BaseModel):
     pass
 
 
-def _remember(fact: str) -> ToolResult:
-    fact_id = facts.add_fact(fact)
-    return ToolResult.ok(data={"id": fact_id}, note="Noted — I'll remember that.")
+def _coerce_kind(kind: str) -> MemoryKind:
+    try:
+        return MemoryKind(kind)
+    except ValueError:
+        return MemoryKind.FACT
+
+
+def _remember(fact: str, kind: str = "fact", hard_rule: bool = False, canonical_key: str = "") -> ToolResult:
+    key = canonical_key.strip() or None
+    # A keyed remember is the user correcting/replacing a prior belief on that topic.
+    source = MemorySource.CORRECTED if key else MemorySource.EXPLICIT
+    strength = MemoryStrength.HARD_CONSTRAINT if hard_rule else MemoryStrength.PREFERENCE
+    result = facts.add_memory(
+        fact, kind=_coerce_kind(kind), source=source, strength=strength, canonical_key=key,
+    )
+    if not result.get("stored"):
+        return ToolResult.ok(data=result, note="Already knew that.")
+    note = "Updated — replaced what I had." if result.get("superseded_id") else "Noted — I'll remember that."
+    return ToolResult.ok(data={"id": result["id"]}, note=note)
 
 
 def _forget(fact_id: int) -> ToolResult:
-    removed = facts.delete_fact(int(fact_id))
-    return ToolResult.ok(data={"forgotten": removed}, note="Forgotten." if removed else "No such fact.")
+    removed = facts.delete_memory(int(fact_id))
+    return ToolResult.ok(data={"forgotten": removed}, note="Forgotten." if removed else "No such memory.")
 
 
 def _list_memory() -> ToolResult:
-    return ToolResult.ok(data={"facts": facts.list_facts(), "email_rules": facts.list_email_prefs()})
+    return ToolResult.ok(data={"memories": facts.list_memories(), "email_rules": facts.list_email_prefs()})
 
 
 def _email_rule(action: str, pattern: str) -> ToolResult:

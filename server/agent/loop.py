@@ -18,7 +18,7 @@ import secrets
 
 import gate
 from llm import chat
-from memory.facts import facts_block
+from memory.facts import memory_block
 from schemas import StopReason, ToolCall, ToolResult, TurnResult
 
 from .prompts import load_prompt
@@ -30,7 +30,7 @@ MAX_ITERS = 8
 def system_prompt() -> str:
     """Voice + execution + what we know about the user, as one system prompt."""
     base = load_prompt("voice") + "\n\n---\n\n" + load_prompt("execution")
-    known = facts_block()
+    known = memory_block()
     return base + ("\n\n---\n\n" + known if known else "")
 
 

@@ -46,6 +46,16 @@ CREATE TABLE IF NOT EXISTS summaries (
 _conn: sqlite3.Connection | None = None
 
 
+def _apply_pragmas(conn: sqlite3.Connection) -> None:
+    # WAL lets background reflection write while a turn reads; busy_timeout waits
+    # out a brief writer instead of raising SQLITE_BUSY.
+    try:
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA busy_timeout=5000")
+    except sqlite3.OperationalError:
+        pass
+
+
 def _connect() -> sqlite3.Connection:
     global _conn
     if _conn is None:
@@ -54,6 +64,7 @@ def _connect() -> sqlite3.Connection:
         # check_same_thread=False for consistency with the async server (tools/
         # scheduler may touch stores from worker threads).
         _conn = sqlite3.connect(str(path), check_same_thread=False)
+        _apply_pragmas(_conn)
         _conn.executescript(_SCHEMA)
     return _conn
 
@@ -63,6 +74,7 @@ def set_connection(conn: sqlite3.Connection | None) -> None:
     global _conn
     _conn = conn
     if conn is not None:
+        _apply_pragmas(conn)
         conn.executescript(_SCHEMA)
 
 

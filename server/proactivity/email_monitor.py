@@ -94,7 +94,7 @@ def _message_record(msg: EmailMessage) -> dict[str, Any]:
         "self_sent": _is_self_sent(msg),
         # Facts are context only. The analysis system prompt explicitly treats
         # every string here as untrusted data rather than further instructions.
-        "remembered_user_facts": [fact["content"] for fact in facts.list_facts()],
+        "remembered_user_facts": [m["content"] for m in facts.list_memories()],
     }
 
 

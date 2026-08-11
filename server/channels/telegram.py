@@ -130,7 +130,9 @@ async def _reflect_bg(conversation_id: str) -> None:
     try:
         learned = await maybe_reflect(conversation_id)
         if learned:
-            print(f"[reflect] learned: {learned}", flush=True)
+            # Log metadata only — never the learned content in plaintext.
+            keys = [item.get("canonical_key") or item.get("kind") for item in learned]
+            print(f"[reflect] stored {len(learned)} belief(s): {keys}", flush=True)
     except Exception as exc:
         print("reflect error:", exc, flush=True)
 
