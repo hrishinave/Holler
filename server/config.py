@@ -33,6 +33,14 @@ class Settings(BaseSettings):
     # Cap output tokens — keeps replies terse and bounds cost.
     MAX_TOKENS: int = 2048
 
+    # --- Embeddings (for document RAG; separate from the chat provider) -----
+    # Chat runs on OpenRouter, which doesn't serve embeddings, so dense retrieval
+    # uses its own OpenAI-compatible endpoint. Default: Google Gemini's free
+    # embeddings. Paste your Gemini key into EMBED_API_KEY.
+    EMBED_BASE_URL: str = "https://generativelanguage.googleapis.com/v1beta/openai/"
+    EMBED_API_KEY: str = ""
+    EMBED_MODEL: str = "text-embedding-004"
+
     # --- Composio (calendar + gmail) ----------------------------------------
     COMPOSIO_API_KEY: str = ""
     # The Composio entity whose Google Calendar + Gmail are connected.
