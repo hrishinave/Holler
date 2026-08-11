@@ -53,6 +53,9 @@ class Settings(BaseSettings):
     # Chat to notify; falls back to the first TELEGRAM_ALLOWED_CHAT_IDS entry.
     OWNER_CHAT_ID: str = ""
     EMAIL_POLL_SECONDS: int = 180
+    # After flagging an email, circle back this many hours later with ONE chill
+    # follow-up — but only if it still looks unhandled. 0 disables follow-ups.
+    EMAIL_FOLLOWUP_HOURS: float = 3.0
 
     # --- Storage -------------------------------------------------------------
     # SQLite file for the conversation log (created on first use).

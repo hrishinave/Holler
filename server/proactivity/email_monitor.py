@@ -18,6 +18,7 @@ from __future__ import annotations
 import asyncio
 import json
 from collections.abc import Callable
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from agent.prompts import load_prompt
@@ -37,6 +38,29 @@ def _owner_chat_id() -> str:
         return settings.OWNER_CHAT_ID
     ids = [c.strip() for c in settings.TELEGRAM_ALLOWED_CHAT_IDS.split(",") if c.strip()]
     return ids[0] if ids else ""
+
+
+def _future_iso(hours: float) -> str:
+    """A naive-UTC ISO timestamp `hours` from now (the triggers store's format)."""
+    return (datetime.now(timezone.utc) + timedelta(hours=hours)).strftime("%Y-%m-%dT%H:%M:%S")
+
+
+def _followup_prompt(msg: EmailMessage, nudge: str) -> str:
+    """A self-contained trigger prompt for a chill, handled-aware follow-up.
+
+    Runs later through the normal loop: it checks whether the email's been dealt
+    with and, thanks to "empty reply = stay silent", says nothing if so.
+    """
+    who = (msg.sender.name or msg.sender.email) if msg.sender else "someone"
+    return (
+        f"Gentle follow-up on an email you flagged earlier for the user: {nudge!r} "
+        f"(from {who}; subject {msg.subject or '(no subject)'!r}; message id {msg.id}). "
+        "First check whether they've handled it — is it now read, or have they "
+        "replied? If it looks handled, say NOTHING AT ALL: reply with empty text. "
+        "Only if it still seems open, send ONE short, chill, low-pressure line in a "
+        "friendly texting tone — a light 'hey, that thing's still hanging if you "
+        "want it' — never naggy, never formal, no pressure."
+    )
 
 
 def _default_poll() -> list[EmailMessage]:
@@ -223,6 +247,7 @@ class EmailMonitor:
             if rule == "skip":
                 pstore.mark_email(summary.id, False)
                 continue
+            notified_msg = summary
             if rule == "flag":
                 who = summary.sender.name or summary.sender.email if summary.sender else "someone"
                 nudge = f"email from {who}: {summary.subject or '(no subject)'}"
@@ -233,6 +258,7 @@ class EmailMonitor:
                     # Fetch failures are retryable. Do not mark the id processed.
                     print("email fetch error:", exc, flush=True)
                     continue
+                notified_msg = msg
                 try:
                     nudge = await self._classify(msg)
                 except Exception as exc:
@@ -246,7 +272,19 @@ class EmailMonitor:
                     "email", f"tg:{owner}", nudge, dedup_key=f"email:{summary.id}"
                 )
                 await notifier.deliver(event, send=self._send)
+                self._schedule_followup(owner, notified_msg, nudge)
             pstore.mark_email(summary.id, bool(nudge))
+
+    def _schedule_followup(self, owner: str, msg: EmailMessage, nudge: str) -> None:
+        """Queue ONE chill follow-up for later, if follow-ups are enabled. It runs
+        through the scheduler → the normal loop, which stays silent if handled."""
+        hours = settings.EMAIL_FOLLOWUP_HOURS
+        if not hours or hours <= 0:
+            return
+        try:
+            pstore.create(f"tg:{owner}", _followup_prompt(msg, nudge), _future_iso(hours))
+        except Exception as exc:
+            print("followup schedule error:", exc, flush=True)
 
 
 __all__ = [
@@ -256,6 +294,8 @@ __all__ = [
     "_default_fetch",
     "_default_poll",
     "_default_render",
+    "_followup_prompt",
+    "_future_iso",
     "_is_self_sent",
     "_json_object",
 ]
