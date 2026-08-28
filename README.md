@@ -1,4 +1,4 @@
-# personal-agent
+# Holler
 
 A lean, open-source, **bring-your-own-key** personal assistant in the spirit of
 [Poke](https://poke.com) — a Telegram bot that manages your Google Calendar and
